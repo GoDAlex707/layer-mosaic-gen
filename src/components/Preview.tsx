@@ -4,8 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import { motion } from "framer-motion";
-import { Image, RefreshCw, Download, Layers, FileZip } from "lucide-react";
+import { Image, RefreshCw, Download, Layers, Archive } from "lucide-react";
 import { Layer, GenerationMode } from "@/types/generator";
+import ImagePreviewDisplay from "./preview/ImagePreviewDisplay";
+import ImageNavigation from "./preview/ImageNavigation";
+import PreviewActionButtons from "./preview/PreviewActionButtons";
+import GenerateButtons from "./preview/GenerateButtons";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
 
@@ -20,7 +24,6 @@ interface PreviewProps {
 const Preview = ({ layers, isGenerating, onGenerate, previewImage, generatedImages }: PreviewProps) => {
   const { toast } = useToast();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [copied, setCopied] = useState(false);
   const [showLayerPreview, setShowLayerPreview] = useState(false);
 
   useEffect(() => {
@@ -58,13 +61,10 @@ const Preview = ({ layers, isGenerating, onGenerate, previewImage, generatedImag
         })
       ]);
       
-      setCopied(true);
       toast({
         title: "Image copied!",
         description: "The image has been copied to your clipboard",
       });
-      
-      setTimeout(() => setCopied(false), 2000);
     } catch (error) {
       console.error("Failed to copy:", error);
       toast({
@@ -154,141 +154,39 @@ const Preview = ({ layers, isGenerating, onGenerate, previewImage, generatedImag
       
       <Card className="overflow-hidden border-gray-200 hover-scale">
         <CardContent className="p-6 flex flex-col items-center space-y-4">
-          <div className="w-full aspect-square bg-gray-50 rounded-lg flex items-center justify-center overflow-hidden border border-gray-200">
-            {showLayerPreview && hasSelectedImages ? (
-              <div className="w-full h-full flex flex-col">
-                <div className="bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700">Selected Layers Preview</div>
-                <div className="flex-1 overflow-auto p-2">
-                  {layers.map(layer => {
-                    const selectedImage = layer.images.find(img => img.selected);
-                    if (!selectedImage) return null;
-                    
-                    return (
-                      <div key={layer.name} className="mb-2 last:mb-0 flex flex-col">
-                        <div className="text-xs text-gray-500 mb-1">{layer.name}</div>
-                        <div className="border border-gray-200 rounded overflow-hidden h-12 flex items-center p-1">
-                          <img 
-                            src={selectedImage.url} 
-                            alt={selectedImage.name} 
-                            className="h-full object-contain"
-                          />
-                          <span className="text-xs ml-2 text-gray-700">{selectedImage.name}</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : (previewImage || generatedImages.length > 0) ? (
-              <motion.img
-                key={generatedImages[currentImageIndex] || previewImage}
-                src={generatedImages[currentImageIndex] || previewImage || ''}
-                alt="NFT Preview"
-                className="w-full h-full object-contain"
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.3 }}
-              />
-            ) : (
-              <div className="text-gray-400 flex flex-col items-center">
-                <Image className="h-12 w-12 mb-2 opacity-20" />
-                <p>NFT preview will appear here</p>
-              </div>
-            )}
-          </div>
+          <ImagePreviewDisplay 
+            showLayerPreview={showLayerPreview}
+            hasSelectedImages={hasSelectedImages}
+            layers={layers}
+            previewImage={previewImage}
+            generatedImages={generatedImages}
+            currentImageIndex={currentImageIndex}
+          />
           
-          {generatedImages.length > 1 && !showLayerPreview && (
-            <div className="flex items-center justify-center w-full space-x-2">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="text-xs"
-                onClick={() => handleImageNavigation('prev')}
-              >
-                Previous
-              </Button>
-              <div className="text-sm text-gray-500">
-                {currentImageIndex + 1} / {generatedImages.length}
-              </div>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="text-xs"
-                onClick={() => handleImageNavigation('next')}
-              >
-                Next
-              </Button>
-            </div>
-          )}
+          <ImageNavigation 
+            generatedImages={generatedImages}
+            currentImageIndex={currentImageIndex}
+            showLayerPreview={showLayerPreview}
+            onNavigate={handleImageNavigation}
+          />
           
-          <div className="grid grid-cols-2 gap-2 w-full">
-            <Button
-              variant="outline"
-              className="border-gray-200 text-gray-500 hover:text-gray-900 hover:bg-gray-50"
-              onClick={toggleLayerPreview}
-              disabled={!hasSelectedImages}
-            >
-              <Layers className="h-4 w-4 mr-2" />
-              {showLayerPreview ? "Show Image" : "Layer View"}
-            </Button>
-            <Button
-              variant="outline"
-              className="border-gray-200 text-gray-500 hover:text-gray-900 hover:bg-gray-50"
-              disabled={generatedImages.length === 0}
-              onClick={handleBulkDownload}
-            >
-              <FileZip className="h-4 w-4 mr-2" />
-              Download All
-            </Button>
-          </div>
+          <PreviewActionButtons 
+            hasSelectedImages={hasSelectedImages}
+            showLayerPreview={showLayerPreview}
+            onToggleLayerPreview={toggleLayerPreview}
+            generatedImages={generatedImages}
+            onBulkDownload={handleBulkDownload}
+            previewImage={previewImage}
+            onCopyImage={handleCopyImage}
+            onDownload={handleDownload}
+          />
           
-          <div className="grid grid-cols-2 gap-2 w-full">
-            <Button
-              variant="outline"
-              className="border-gray-200 text-gray-500 hover:text-gray-900 hover:bg-gray-50"
-              disabled={!previewImage && generatedImages.length === 0}
-              onClick={handleCopyImage}
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Save
-            </Button>
-            <Button
-              variant="outline"
-              className="border-gray-200 text-gray-500 hover:text-gray-900 hover:bg-gray-50"
-              disabled={!previewImage && generatedImages.length === 0}
-              onClick={handleDownload}
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Download
-            </Button>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-2 w-full">
-            <Button
-              className="bg-indigo-600 hover:bg-indigo-700 text-white"
-              disabled={isGenerating || !hasSelectedImages}
-              onClick={() => onGenerate('selected')}
-            >
-              {isGenerating ? (
-                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <RefreshCw className="h-4 w-4 mr-2" />
-              )}
-              Selected
-            </Button>
-            <Button
-              className="bg-gray-900 hover:bg-gray-800 text-white"
-              disabled={isGenerating || !areLayersReady}
-              onClick={() => onGenerate('random')}
-            >
-              {isGenerating ? (
-                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <RefreshCw className="h-4 w-4 mr-2" />
-              )}
-              Random
-            </Button>
-          </div>
+          <GenerateButtons 
+            isGenerating={isGenerating}
+            hasSelectedImages={hasSelectedImages}
+            areLayersReady={areLayersReady}
+            onGenerate={onGenerate}
+          />
           
           {!areLayersReady && (
             <p className="text-sm text-amber-600">
