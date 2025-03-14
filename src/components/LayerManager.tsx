@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { motion, AnimatePresence } from "framer-motion";
-import { Layers, Upload, X, ArrowUp, ArrowDown } from "lucide-react";
+import { Layers, Upload, X, ArrowUp, ArrowDown, ChevronDown, ChevronRight } from "lucide-react";
 import { Layer } from "@/types/generator";
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 
 interface LayerManagerProps {
   layers: Layer[];
@@ -37,7 +38,7 @@ const LayerManager = ({ layers, setLayers }: LayerManagerProps) => {
       return;
     }
 
-    setLayers([...layers, { name: newLayerName, images: [] }]);
+    setLayers([...layers, { name: newLayerName, images: [], collapsed: false }]);
     setNewLayerName("");
     
     toast({
@@ -63,6 +64,15 @@ const LayerManager = ({ layers, setLayers }: LayerManagerProps) => {
     } else if (direction === "down" && index < layers.length - 1) {
       [newLayers[index], newLayers[index + 1]] = [newLayers[index + 1], newLayers[index]];
     }
+    setLayers(newLayers);
+  };
+
+  const toggleLayerCollapse = (index: number) => {
+    const newLayers = [...layers];
+    newLayers[index] = {
+      ...newLayers[index],
+      collapsed: !newLayers[index].collapsed
+    };
     setLayers(newLayers);
   };
 
@@ -115,6 +125,25 @@ const LayerManager = ({ layers, setLayers }: LayerManagerProps) => {
     setLayers(updatedLayers);
   };
 
+  const handleSelectImage = (layerIndex: number, imageId: string) => {
+    const updatedLayers = [...layers];
+    const layer = { ...updatedLayers[layerIndex] };
+    
+    // Deselect all images first
+    layer.images = layer.images.map(img => ({
+      ...img,
+      selected: img.id === imageId
+    }));
+    
+    updatedLayers[layerIndex] = layer;
+    setLayers(updatedLayers);
+    
+    toast({
+      title: "Image selected",
+      description: `Image selected for "${layer.name}" layer`,
+    });
+  };
+
   return (
     <div className="space-y-6 w-full max-w-md">
       <div className="flex items-center space-x-2">
@@ -145,78 +174,98 @@ const LayerManager = ({ layers, setLayers }: LayerManagerProps) => {
               transition={{ duration: 0.2 }}
               className="space-y-2"
             >
-              <Card className="overflow-hidden hover-scale border-gray-200">
-                <CardContent className="p-4">
-                  <div className="flex justify-between items-center mb-3">
-                    <div className="flex items-center">
-                      <div className="bg-gray-100 text-gray-800 w-8 h-8 rounded-full flex items-center justify-center mr-3">
-                        {index + 1}
+              <Collapsible
+                open={!layer.collapsed}
+                onOpenChange={() => toggleLayerCollapse(index)}
+                className="border border-gray-200 rounded-md hover-scale"
+              >
+                <div className="flex justify-between items-center p-4 bg-white">
+                  <CollapsibleTrigger asChild>
+                    <Button variant="ghost" size="sm" className="p-0 h-auto">
+                      <div className="flex items-center">
+                        <div className="mr-2">
+                          {layer.collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                        </div>
+                        <div className="bg-gray-100 text-gray-800 w-8 h-8 rounded-full flex items-center justify-center mr-3">
+                          {index + 1}
+                        </div>
+                        <h3 className="font-medium">{layer.name}</h3>
                       </div>
-                      <h3 className="font-medium">{layer.name}</h3>
-                    </div>
-                    <div className="flex items-center space-x-1">
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        onClick={() => handleMoveLayer(index, "up")}
-                        disabled={index === 0}
-                        className="h-8 w-8 text-gray-500 hover:text-gray-900 hover:bg-gray-100"
-                      >
-                        <ArrowUp className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        onClick={() => handleMoveLayer(index, "down")}
-                        disabled={index === layers.length - 1}
-                        className="h-8 w-8 text-gray-500 hover:text-gray-900 hover:bg-gray-100"
-                      >
-                        <ArrowDown className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        onClick={() => handleRemoveLayer(index)}
-                        className="h-8 w-8 text-gray-500 hover:text-red-500 hover:bg-gray-100"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                  
-                  <div className="mt-2">
+                    </Button>
+                  </CollapsibleTrigger>
+                  <div className="flex items-center space-x-1">
                     <Button 
-                      variant="outline" 
-                      className="w-full border-dashed border-gray-300 text-gray-500 hover:text-gray-900 hover:bg-gray-50"
-                      onClick={() => triggerFileInput(index)}
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={() => handleMoveLayer(index, "up")}
+                      disabled={index === 0}
+                      className="h-8 w-8 text-gray-500 hover:text-gray-900 hover:bg-gray-100"
                     >
-                      <Upload className="h-4 w-4 mr-2" />
-                      Upload Images
+                      <ArrowUp className="h-4 w-4" />
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={() => handleMoveLayer(index, "down")}
+                      disabled={index === layers.length - 1}
+                      className="h-8 w-8 text-gray-500 hover:text-gray-900 hover:bg-gray-100"
+                    >
+                      <ArrowDown className="h-4 w-4" />
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={() => handleRemoveLayer(index)}
+                      className="h-8 w-8 text-gray-500 hover:text-red-500 hover:bg-gray-100"
+                    >
+                      <X className="h-4 w-4" />
                     </Button>
                   </div>
-                  
-                  {layer.images.length > 0 && (
-                    <div className="mt-4 grid grid-cols-3 gap-2">
-                      {layer.images.map((image) => (
-                        <div key={image.id} className="relative group">
-                          <img 
-                            src={image.url} 
-                            alt={image.name} 
-                            className="w-full h-16 object-cover rounded-md border border-gray-200 bg-gray-50"
-                          />
-                          <button
-                            onClick={() => handleRemoveImage(index, image.id)}
-                            className="absolute top-0 right-0 bg-white/80 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-gray-500 hover:text-red-500"
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                          <div className="text-xs truncate mt-1 text-gray-500">{image.name}</div>
-                        </div>
-                      ))}
+                </div>
+                
+                <CollapsibleContent>
+                  <div className="p-4 pt-0 border-t border-gray-100">
+                    <div className="mt-2">
+                      <Button 
+                        variant="outline" 
+                        className="w-full border-dashed border-gray-300 text-gray-500 hover:text-gray-900 hover:bg-gray-50"
+                        onClick={() => triggerFileInput(index)}
+                      >
+                        <Upload className="h-4 w-4 mr-2" />
+                        Upload Images
+                      </Button>
                     </div>
-                  )}
-                </CardContent>
-              </Card>
+                    
+                    {layer.images.length > 0 && (
+                      <div className="mt-4 grid grid-cols-3 gap-2">
+                        {layer.images.map((image) => (
+                          <div 
+                            key={image.id} 
+                            className={`relative group cursor-pointer ${image.selected ? 'ring-2 ring-blue-500 rounded-md' : ''}`}
+                            onClick={() => handleSelectImage(index, image.id)}
+                          >
+                            <img 
+                              src={image.url} 
+                              alt={image.name} 
+                              className="w-full h-16 object-cover rounded-md border border-gray-200 bg-gray-50"
+                            />
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRemoveImage(index, image.id);
+                              }}
+                              className="absolute top-0 right-0 bg-white/80 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-gray-500 hover:text-red-500"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                            <div className="text-xs truncate mt-1 text-gray-500">{image.name}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             </motion.div>
           ))}
         </AnimatePresence>

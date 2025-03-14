@@ -14,6 +14,23 @@ export const generateRandomCombination = (layers: Layer[]): {[key: string]: stri
   return combination;
 };
 
+export const generateSelectedCombination = (layers: Layer[]): {[key: string]: string} => {
+  const combination: {[key: string]: string} = {};
+  
+  layers.forEach(layer => {
+    // Find selected image in layer
+    const selectedImage = layer.images.find(img => img.selected);
+    if (selectedImage) {
+      combination[layer.name] = selectedImage.url;
+    } else if (layer.images.length > 0) {
+      // If no image is selected, use the first one
+      combination[layer.name] = layer.images[0].url;
+    }
+  });
+  
+  return combination;
+};
+
 export const generateAllCombinations = (layers: Layer[], maxToGenerate: number): {[key: string]: string}[] => {
   // Recursive function to generate all combinations
   const generateCombinations = (layerIndex: number, currentCombination: {[key: string]: string} = {}): {[key: string]: string}[] => {
@@ -62,10 +79,43 @@ export const drawImageOnCanvas = async (
   // Create an array of layer names and sort them
   const layerNames = Object.keys(layerImages);
   
+  // If using original size, determine the largest image dimensions first
+  if (config.useOriginalSize) {
+    let maxWidth = config.imageWidth;
+    let maxHeight = config.imageHeight;
+    
+    // Load all images first to get their dimensions
+    const imagePromises = layerNames.map(async (layerName) => {
+      const imageUrl = layerImages[layerName];
+      return new Promise<HTMLImageElement>((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.onload = () => {
+          maxWidth = Math.max(maxWidth, img.naturalWidth);
+          maxHeight = Math.max(maxHeight, img.naturalHeight);
+          resolve(img);
+        };
+        img.onerror = reject;
+        img.src = imageUrl;
+      });
+    });
+    
+    try {
+      await Promise.all(imagePromises);
+      
+      // Resize canvas to match the largest image
+      canvas.width = maxWidth;
+      canvas.height = maxHeight;
+      ctx.clearRect(0, 0, maxWidth, maxHeight);
+    } catch (error) {
+      console.error('Error preloading images:', error);
+    }
+  }
+  
   // Draw each layer in order
   for (const layerName of layerNames) {
     const imageUrl = layerImages[layerName];
-    await drawLayer(ctx, imageUrl, config.imageWidth, config.imageHeight);
+    await drawLayer(ctx, imageUrl, canvas.width, canvas.height);
   }
   
   // Return the data URL of the canvas

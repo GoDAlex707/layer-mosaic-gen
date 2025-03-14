@@ -7,7 +7,12 @@ import LayerManager from "@/components/LayerManager";
 import Preview from "@/components/Preview";
 import GeneratorSettings from "@/components/GeneratorSettings";
 import { Layer, GeneratorConfig } from "@/types/generator";
-import { generateRandomCombination, generateAllCombinations, drawImageOnCanvas } from "@/services/generator";
+import { 
+  generateRandomCombination, 
+  generateAllCombinations, 
+  drawImageOnCanvas,
+  generateSelectedCombination 
+} from "@/services/generator";
 
 const Index = () => {
   const { toast } = useToast();
@@ -20,7 +25,8 @@ const Index = () => {
     maxToGenerate: 10,
     imageWidth: 512,
     imageHeight: 512,
-    randomMode: true
+    randomMode: true,
+    useOriginalSize: true
   });
 
   // Create a hidden canvas for generating images
@@ -39,7 +45,7 @@ const Index = () => {
     }
   }, [config.imageWidth, config.imageHeight]);
 
-  // Generate preview image when layers change
+  // Generate preview image when layers change or when an image is selected
   useEffect(() => {
     const generatePreview = async () => {
       if (!canvasRef.current) return;
@@ -52,7 +58,14 @@ const Index = () => {
       if (!ctx) return;
 
       try {
-        const combination = generateRandomCombination(layers);
+        // Check if there are selected images in layers
+        const hasSelectedImages = layers.some(layer => layer.images.some(img => img.selected));
+        
+        // Use selected images if available, otherwise generate random
+        const combination = hasSelectedImages 
+          ? generateSelectedCombination(layers)
+          : generateRandomCombination(layers);
+          
         const previewImageUrl = await drawImageOnCanvas(canvasRef.current, ctx, combination, config);
         setPreviewImage(previewImageUrl);
       } catch (error) {
@@ -83,7 +96,13 @@ const Index = () => {
 
       let combinations: {[key: string]: string}[];
       
-      if (config.randomMode) {
+      // Check if there are selected images
+      const hasSelectedImages = layers.some(layer => layer.images.some(img => img.selected));
+      
+      if (hasSelectedImages) {
+        // If using selected images, just generate one combination
+        combinations = [generateSelectedCombination(layers)];
+      } else if (config.randomMode) {
         // Generate random combinations
         combinations = Array.from({ length: config.maxToGenerate }).map(() => generateRandomCombination(layers));
       } else {
