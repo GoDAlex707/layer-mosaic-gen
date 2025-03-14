@@ -4,8 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import { motion } from "framer-motion";
-import { Image, RefreshCw, Download, Copy, Wand2 } from "lucide-react";
+import { Image, RefreshCw, Download, Layers, FileZip } from "lucide-react";
 import { Layer, GenerationMode } from "@/types/generator";
+import JSZip from "jszip";
+import { saveAs } from "file-saver";
 
 interface PreviewProps {
   layers: Layer[];
@@ -19,6 +21,7 @@ const Preview = ({ layers, isGenerating, onGenerate, previewImage, generatedImag
   const { toast } = useToast();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [copied, setCopied] = useState(false);
+  const [showLayerPreview, setShowLayerPreview] = useState(false);
 
   useEffect(() => {
     if (generatedImages.length > 0) {
@@ -91,6 +94,54 @@ const Preview = ({ layers, isGenerating, onGenerate, previewImage, generatedImag
     });
   };
 
+  const handleBulkDownload = async () => {
+    if (generatedImages.length === 0) {
+      toast({
+        title: "No images to download",
+        description: "Generate some images first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const zip = new JSZip();
+      const folder = zip.folder("nft-collection");
+      
+      if (!folder) throw new Error("Could not create folder in zip");
+      
+      // Add each image to the zip with sequential naming
+      const fetchPromises = generatedImages.map(async (dataUrl, index) => {
+        const response = await fetch(dataUrl);
+        const blob = await response.blob();
+        folder.file(`${index}.png`, blob);
+      });
+      
+      await Promise.all(fetchPromises);
+      
+      // Generate the zip file
+      const content = await zip.generateAsync({ type: "blob" });
+      // Save the zip file
+      saveAs(content, `nft-collection-${Date.now()}.zip`);
+      
+      toast({
+        title: "Collection downloaded!",
+        description: `${generatedImages.length} images have been saved as a zip file`,
+      });
+    } catch (error) {
+      console.error("Error creating zip file:", error);
+      toast({
+        title: "Download failed",
+        description: "Could not create the zip file",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const toggleLayerPreview = () => {
+    setShowLayerPreview(!showLayerPreview);
+  };
+
   const areLayersReady = layers.length > 0 && layers.every(layer => layer.images.length > 0);
   const hasSelectedImages = layers.some(layer => layer.images.some(img => img.selected));
 
@@ -104,7 +155,31 @@ const Preview = ({ layers, isGenerating, onGenerate, previewImage, generatedImag
       <Card className="overflow-hidden border-gray-200 hover-scale">
         <CardContent className="p-6 flex flex-col items-center space-y-4">
           <div className="w-full aspect-square bg-gray-50 rounded-lg flex items-center justify-center overflow-hidden border border-gray-200">
-            {(previewImage || generatedImages.length > 0) ? (
+            {showLayerPreview && hasSelectedImages ? (
+              <div className="w-full h-full flex flex-col">
+                <div className="bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700">Selected Layers Preview</div>
+                <div className="flex-1 overflow-auto p-2">
+                  {layers.map(layer => {
+                    const selectedImage = layer.images.find(img => img.selected);
+                    if (!selectedImage) return null;
+                    
+                    return (
+                      <div key={layer.name} className="mb-2 last:mb-0 flex flex-col">
+                        <div className="text-xs text-gray-500 mb-1">{layer.name}</div>
+                        <div className="border border-gray-200 rounded overflow-hidden h-12 flex items-center p-1">
+                          <img 
+                            src={selectedImage.url} 
+                            alt={selectedImage.name} 
+                            className="h-full object-contain"
+                          />
+                          <span className="text-xs ml-2 text-gray-700">{selectedImage.name}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (previewImage || generatedImages.length > 0) ? (
               <motion.img
                 key={generatedImages[currentImageIndex] || previewImage}
                 src={generatedImages[currentImageIndex] || previewImage || ''}
@@ -122,7 +197,7 @@ const Preview = ({ layers, isGenerating, onGenerate, previewImage, generatedImag
             )}
           </div>
           
-          {generatedImages.length > 1 && (
+          {generatedImages.length > 1 && !showLayerPreview && (
             <div className="flex items-center justify-center w-full space-x-2">
               <Button 
                 variant="outline" 
@@ -150,11 +225,32 @@ const Preview = ({ layers, isGenerating, onGenerate, previewImage, generatedImag
             <Button
               variant="outline"
               className="border-gray-200 text-gray-500 hover:text-gray-900 hover:bg-gray-50"
+              onClick={toggleLayerPreview}
+              disabled={!hasSelectedImages}
+            >
+              <Layers className="h-4 w-4 mr-2" />
+              {showLayerPreview ? "Show Image" : "Layer View"}
+            </Button>
+            <Button
+              variant="outline"
+              className="border-gray-200 text-gray-500 hover:text-gray-900 hover:bg-gray-50"
+              disabled={generatedImages.length === 0}
+              onClick={handleBulkDownload}
+            >
+              <FileZip className="h-4 w-4 mr-2" />
+              Download All
+            </Button>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-2 w-full">
+            <Button
+              variant="outline"
+              className="border-gray-200 text-gray-500 hover:text-gray-900 hover:bg-gray-50"
               disabled={!previewImage && generatedImages.length === 0}
               onClick={handleCopyImage}
             >
-              <Copy className="h-4 w-4 mr-2" />
-              Copy
+              <Download className="h-4 w-4 mr-2" />
+              Save
             </Button>
             <Button
               variant="outline"
@@ -163,7 +259,7 @@ const Preview = ({ layers, isGenerating, onGenerate, previewImage, generatedImag
               onClick={handleDownload}
             >
               <Download className="h-4 w-4 mr-2" />
-              Save
+              Download
             </Button>
           </div>
           
@@ -176,7 +272,7 @@ const Preview = ({ layers, isGenerating, onGenerate, previewImage, generatedImag
               {isGenerating ? (
                 <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
               ) : (
-                <Wand2 className="h-4 w-4 mr-2" />
+                <RefreshCw className="h-4 w-4 mr-2" />
               )}
               Selected
             </Button>
