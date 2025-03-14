@@ -1,4 +1,3 @@
-
 import { useState, useRef } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
@@ -111,7 +110,6 @@ const LayerManager = ({ layers, setLayers }: LayerManagerProps) => {
       description: `${files.length} images added to "${currentLayer.name}"`,
     });
     
-    // Reset the input
     e.target.value = '';
   };
 
@@ -128,8 +126,24 @@ const LayerManager = ({ layers, setLayers }: LayerManagerProps) => {
   const handleSelectImage = (layerIndex: number, imageId: string) => {
     const updatedLayers = [...layers];
     const layer = { ...updatedLayers[layerIndex] };
+    const imageToUpdate = layer.images.find(img => img.id === imageId);
     
-    // Deselect all images first
+    if (imageToUpdate && imageToUpdate.selected) {
+      layer.images = layer.images.map(img => ({
+        ...img,
+        selected: img.id === imageId ? false : img.selected
+      }));
+      
+      updatedLayers[layerIndex] = layer;
+      setLayers(updatedLayers);
+      
+      toast({
+        title: "Image deselected",
+        description: `Image deselected from "${layer.name}" layer`,
+      });
+      return;
+    }
+    
     layer.images = layer.images.map(img => ({
       ...img,
       selected: img.id === imageId

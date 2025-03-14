@@ -19,3 +19,5 @@ export interface GeneratorConfig {
   randomMode: boolean;
   useOriginalSize?: boolean;
 }
+
+export type GenerationMode = 'selected' | 'random' | 'all';

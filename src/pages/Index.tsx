@@ -6,7 +6,7 @@ import Header from "@/components/Header";
 import LayerManager from "@/components/LayerManager";
 import Preview from "@/components/Preview";
 import GeneratorSettings from "@/components/GeneratorSettings";
-import { Layer, GeneratorConfig } from "@/types/generator";
+import { Layer, GeneratorConfig, GenerationMode } from "@/types/generator";
 import { 
   generateRandomCombination, 
   generateAllCombinations, 
@@ -76,7 +76,7 @@ const Index = () => {
     generatePreview();
   }, [layers, config]);
 
-  const handleGenerate = async () => {
+  const handleGenerate = async (mode: GenerationMode) => {
     if (!canvasRef.current) return;
     if (layers.length === 0 || layers.some(layer => layer.images.length === 0)) {
       toast({
@@ -96,13 +96,11 @@ const Index = () => {
 
       let combinations: {[key: string]: string}[];
       
-      // Check if there are selected images
-      const hasSelectedImages = layers.some(layer => layer.images.some(img => img.selected));
-      
-      if (hasSelectedImages) {
-        // If using selected images, just generate one combination
+      // Determine which generation strategy to use based on mode
+      if (mode === 'selected') {
+        // Generate using selected images
         combinations = [generateSelectedCombination(layers)];
-      } else if (config.randomMode) {
+      } else if (mode === 'random' || config.randomMode) {
         // Generate random combinations
         combinations = Array.from({ length: config.maxToGenerate }).map(() => generateRandomCombination(layers));
       } else {

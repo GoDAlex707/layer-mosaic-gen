@@ -4,13 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import { motion } from "framer-motion";
-import { Image, RefreshCw, Download, Copy } from "lucide-react";
-import { Layer } from "@/types/generator";
+import { Image, RefreshCw, Download, Copy, Wand2 } from "lucide-react";
+import { Layer, GenerationMode } from "@/types/generator";
 
 interface PreviewProps {
   layers: Layer[];
   isGenerating: boolean;
-  onGenerate: () => void;
+  onGenerate: (mode: GenerationMode) => void;
   previewImage: string | null;
   generatedImages: string[];
 }
@@ -92,6 +92,7 @@ const Preview = ({ layers, isGenerating, onGenerate, previewImage, generatedImag
   };
 
   const areLayersReady = layers.length > 0 && layers.every(layer => layer.images.length > 0);
+  const hasSelectedImages = layers.some(layer => layer.images.some(img => img.selected));
 
   return (
     <div className="space-y-6 w-full max-w-md">
@@ -145,7 +146,7 @@ const Preview = ({ layers, isGenerating, onGenerate, previewImage, generatedImag
             </div>
           )}
           
-          <div className="grid grid-cols-3 gap-2 w-full">
+          <div className="grid grid-cols-2 gap-2 w-full">
             <Button
               variant="outline"
               className="border-gray-200 text-gray-500 hover:text-gray-900 hover:bg-gray-50"
@@ -164,23 +165,43 @@ const Preview = ({ layers, isGenerating, onGenerate, previewImage, generatedImag
               <Download className="h-4 w-4 mr-2" />
               Save
             </Button>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-2 w-full">
+            <Button
+              className="bg-indigo-600 hover:bg-indigo-700 text-white"
+              disabled={isGenerating || !hasSelectedImages}
+              onClick={() => onGenerate('selected')}
+            >
+              {isGenerating ? (
+                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Wand2 className="h-4 w-4 mr-2" />
+              )}
+              Selected
+            </Button>
             <Button
               className="bg-gray-900 hover:bg-gray-800 text-white"
               disabled={isGenerating || !areLayersReady}
-              onClick={onGenerate}
+              onClick={() => onGenerate('random')}
             >
               {isGenerating ? (
                 <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
               ) : (
                 <RefreshCw className="h-4 w-4 mr-2" />
               )}
-              Generate
+              Random
             </Button>
           </div>
           
           {!areLayersReady && (
             <p className="text-sm text-amber-600">
               Please add at least one image to each layer before generating
+            </p>
+          )}
+          {areLayersReady && !hasSelectedImages && (
+            <p className="text-sm text-blue-600">
+              Select images from each layer for custom generation
             </p>
           )}
         </CardContent>
